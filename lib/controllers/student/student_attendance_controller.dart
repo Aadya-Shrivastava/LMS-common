@@ -1,5 +1,7 @@
 import 'package:get/get.dart';
+import '../../core/network/saved_then_fresh.dart';
 import 'package:lms/models/student/attendance_log_entry_model.dart';
+import 'package:lms/models/student/attendance_settings_model.dart';
 import 'package:lms/models/student/subject_attendance_model.dart';
 import 'package:lms/services/student/student_attendance_service.dart';
 
@@ -17,6 +19,21 @@ class StudentAttendanceController extends GetxController {
   final RxBool isLoading = true.obs;
   final RxList<SubjectAttendanceModel> subjectWiseAttendance = <SubjectAttendanceModel>[].obs;
   final RxList<AttendanceLogEntryModel> attendanceLog = <AttendanceLogEntryModel>[].obs;
+  final RxList<WorkingDayModel> workingDays = <WorkingDayModel>[].obs;
+  final Rx<AttendanceRulesModel?> rules = Rx<AttendanceRulesModel?>(null);
+
+  final RxnString errorMessage = RxnString();
+
+  /// True once the data has loaded at least once, so a failed refresh
+  /// keeps showing the old data instead of an error page.
+  bool hasLoaded = false;
+
+  /// The minimum attendance % the campus requires. Falls back to 75%,
+  /// the usual shortage threshold, if the campus hasn't set one.
+  double get minRequiredPercent {
+    final value = rules.value?.minRequiredPercent ?? 0;
+    return value > 0 ? value : 75;
+  }
 
   final Rx<AttendanceFilter> activeFilter = AttendanceFilter.overall.obs;
 
@@ -80,6 +97,27 @@ class StudentAttendanceController extends GetxController {
     return ((presentCountForSelectedMonth / total) * 100).round();
   }
 
+  /// The selected month's entries grouped by day-of-month - what the
+  /// attendance calendar uses to color each day.
+  Map<int, List<AttendanceLogEntryModel>> get entriesByDayForSelectedMonth {
+    final map = <int, List<AttendanceLogEntryModel>>{};
+    for (final entry in _selectedMonthEntries) {
+      map.putIfAbsent(entry.date.day, () => []).add(entry);
+    }
+    return map;
+  }
+
+  /// Tapping a calendar day narrows the log to it; tapping the same
+  /// day again clears that pick.
+  void toggleDate(DateTime day) {
+    final current = selectedDate.value;
+    if (current != null && _isSameDay(current, day)) {
+      clearSelectedDate();
+    } else {
+      selectDate(day);
+    }
+  }
+
   bool _isSameDay(DateTime a, DateTime b) {
     return a.year == b.year && a.month == b.month && a.day == b.day;
   }
@@ -92,15 +130,24 @@ class StudentAttendanceController extends GetxController {
 
   Future<void> loadAttendance() async {
     isLoading.value = true;
+    errorMessage.value = null;
 
-    final results = await Future.wait([
-      _service.getSubjectWiseAttendance(),
-      _service.getAttendanceLog(),
-    ]);
-
-    subjectWiseAttendance.assignAll(results[0] as List<SubjectAttendanceModel>);
-    attendanceLog.assignAll(results[1] as List<AttendanceLogEntryModel>);
-
+    errorMessage.value = await loadSavedThenFresh(
+      () => Future.wait([
+        _service.getAttendanceLog(),
+        _service.getWorkingDays(),
+        _service.getRules(),
+      ]),
+      (results) {
+        final log = results[0] as List<AttendanceLogEntryModel>;
+        attendanceLog.assignAll(log);
+        subjectWiseAttendance.assignAll(_service.subjectWiseFromLog(log));
+        workingDays.assignAll(results[1] as List<WorkingDayModel>);
+        rules.value = results[2] as AttendanceRulesModel?;
+        hasLoaded = true;
+        isLoading.value = false;
+      },
+    );
     isLoading.value = false;
   }
 

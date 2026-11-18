@@ -30,12 +30,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   /// dashboard; student screens should pass the student dashboard.
   final String fallbackRoute;
 
-  const CustomAppBar({
+ const CustomAppBar({
     super.key,
     required this.title,
     this.subtitle,
     this.bottom,
-    this.fallbackRoute = Routes.facultyDashboard,
+    this.fallbackRoute = Routes.studentDashboard,
   });
 
   @override

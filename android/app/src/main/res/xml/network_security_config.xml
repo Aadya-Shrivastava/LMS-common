@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The LMS backend is served over plain http. Android 9+ blocks that by
+     default, so we allow it only for our own server. Remove this once the
+     backend has https. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">leariningmanagementsystem.whatido.in</domain>
+    </domain-config>
+</network-security-config>

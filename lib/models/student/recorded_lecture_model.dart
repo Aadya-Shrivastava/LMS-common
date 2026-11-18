@@ -6,10 +6,14 @@ class RecordedLectureModel {
   final String durationText;
   final String facultyName;
 
+  /// Link to the recording. Can be empty.
+  final String recordingUrl;
+
   const RecordedLectureModel({
     required this.tag,
     required this.title,
     required this.durationText,
     required this.facultyName,
+    this.recordingUrl = '',
   });
 }

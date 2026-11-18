@@ -1,12 +1,16 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../controllers/student/student_course_controller.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/routes/app_routes.dart';
+import '../../../core/utils/link_opener.dart';
 import 'package:lms/models/student/recorded_lecture_model.dart';
 import 'package:lms/models/student/student_class_schedule_model.dart';
 import '../../../widgets/custom_app_bar.dart';
 import '../../../widgets/custom_loader.dart';
+import '../../../widgets/empty_state_widget.dart';
+import '../../../widgets/error_state_widget.dart';
 import '../../../widgets/section_card.dart';
 import '../../../widgets/status_badge.dart';
 import '../../../widgets/student/student_drawer.dart';
@@ -27,8 +31,21 @@ class _StudentLiveClassesScreenState extends State<StudentLiveClassesScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController = TabController(length: 2, vsync: this);
 
+  /// Redraws every 30 seconds so Join, "Starting Soon" and "Live Now"
+  /// switch on by themselves while the screen stays open.
+  late final Timer _clock = Timer.periodic(const Duration(seconds: 30), (_) {
+    if (mounted) setState(() {});
+  });
+
+  @override
+  void initState() {
+    super.initState();
+    _clock; // Starts the timer.
+  }
+
   @override
   void dispose() {
+    _clock.cancel();
     _tabController.dispose();
     super.dispose();
   }
@@ -36,6 +53,7 @@ class _StudentLiveClassesScreenState extends State<StudentLiveClassesScreen>
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<StudentCourseController>();
+    controller.ensureClassesLoaded();
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -56,7 +74,14 @@ class _StudentLiveClassesScreenState extends State<StudentLiveClassesScreen>
       ),
       drawer: const StudentDrawer(currentRoute: Routes.studentLiveClasses),
       body: Obx(() {
-        if (controller.isLoadingClasses.value) {
+        final error = controller.classesError.value;
+        if (error != null && !controller.hasLoadedClasses) {
+          return ErrorStateWidget(
+            message: error,
+            onRetry: controller.loadTodaysClassSchedule,
+          );
+        }
+        if (controller.isLoadingClasses.value && !controller.hasLoadedClasses) {
           return const CustomLoader();
         }
 
@@ -73,7 +98,7 @@ class _StudentLiveClassesScreenState extends State<StudentLiveClassesScreen>
 
   Widget _buildLiveAndScheduleTab(StudentCourseController controller) {
     final liveNow = controller.todaysClassSchedule
-        .where((item) => item.status == StudentClassStatus.live)
+        .where((item) => item.isLiveNow())
         .toList();
 
     return RefreshIndicator(
@@ -92,15 +117,36 @@ class _StudentLiveClassesScreenState extends State<StudentLiveClassesScreen>
             const SizedBox(height: 16),
           ],
           SectionCard(
-            title: "Today's Schedule",
+            title: 'Upcoming Classes',
             padding: EdgeInsets.zero,
-            child: Column(
-              children: [
-                for (final item in controller.todaysClassSchedule)
-                  _ScheduleTile(item: item),
-              ],
-            ),
+            child: controller.todaysClassSchedule.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: EmptyStateWidget(
+                      icon: Icons.event_available_outlined,
+                      title: 'No upcoming classes',
+                      message: 'New live classes will show up here.',
+                    ),
+                  )
+                : Column(
+                    children: [
+                      for (final item in controller.todaysClassSchedule)
+                        _ScheduleTile(item: item),
+                    ],
+                  ),
           ),
+          if (controller.pastClasses.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            SectionCard(
+              title: 'Past Classes',
+              padding: EdgeInsets.zero,
+              child: Column(
+                children: [
+                  for (final item in controller.pastClasses) _ScheduleTile(item: item),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -114,12 +160,18 @@ class _StudentLiveClassesScreenState extends State<StudentLiveClassesScreen>
         children: [
           SectionCard(
             title: 'Recorded Lecture Library',
-            child: Column(
-              children: [
-                for (final lecture in controller.recordedLectures)
-                  _RecordedLectureTile(lecture: lecture),
-              ],
-            ),
+            child: controller.recordedLectures.isEmpty
+                ? const EmptyStateWidget(
+                    icon: Icons.video_library_outlined,
+                    title: 'No recordings yet',
+                    message: 'Recorded classes will show up here.',
+                  )
+                : Column(
+                    children: [
+                      for (final lecture in controller.recordedLectures)
+                        _RecordedLectureTile(lecture: lecture),
+                    ],
+                  ),
           ),
         ],
       ),
@@ -158,11 +210,7 @@ class _LiveNowTile extends StatelessWidget {
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: AppColors.primaryNavy),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Joining ${item.subject}...')),
-              );
-            },
+            onPressed: () => openLink(item.meetingLink),
             child: const Text('Join Class'),
           ),
         ],
@@ -171,9 +219,11 @@ class _LiveNowTile extends StatelessWidget {
   }
 }
 
-/// A row in "Today's Schedule" - shows the time, subject, faculty and
-/// platform, plus either a Join button (if live) or a Reminder button
-/// (if upcoming).
+/// A row in "Upcoming Classes" or "Past Classes" - shows the time,
+/// subject, faculty and platform, plus:
+///   - a Join button from 10 minutes before the start until the end,
+///   - a Reminder button (bell) before that,
+///   - nothing for finished or cancelled classes.
 class _ScheduleTile extends StatelessWidget {
   final StudentClassScheduleModel item;
 
@@ -181,7 +231,17 @@ class _ScheduleTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isLive = item.status == StudentClassStatus.live;
+    final now = DateTime.now();
+    final isLive = item.isLiveNow(now);
+    final canJoin = item.canJoin(now);
+
+    final (badgeLabel, badgeType) = switch (item.status) {
+      StudentClassStatus.completed => ('Completed', BadgeType.neutral),
+      StudentClassStatus.cancelled => ('Cancelled', BadgeType.danger),
+      _ when isLive => ('Live', BadgeType.success),
+      _ when canJoin => ('Starting Soon', BadgeType.warning),
+      _ => ('Upcoming', BadgeType.neutral),
+    };
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -206,40 +266,58 @@ class _ScheduleTile extends StatelessWidget {
               ],
             ),
           ),
-          StatusBadge(
-            label: isLive ? 'Live' : 'Upcoming',
-            type: isLive ? BadgeType.success : BadgeType.neutral,
-          ),
-          const SizedBox(width: 8),
-          isLive
-              ? FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primaryNavy,
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    minimumSize: const Size(0, 32),
-                  ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Joining ${item.subject}...')),
-                    );
-                  },
-                  child: const Text('Join', style: TextStyle(fontSize: 12)),
-                )
-              : OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    minimumSize: const Size(0, 32),
-                  ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text("We'll remind you before ${item.subject} starts")),
-                    );
-                  },
-                  child: const Text('Reminder', style: TextStyle(fontSize: 12)),
+          StatusBadge(label: badgeLabel, type: badgeType),
+          // Finished and cancelled classes just show their badge.
+          if (!item.isOver) ...[
+            const SizedBox(width: 8),
+            if (canJoin)
+              FilledButton(
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primaryNavy,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  minimumSize: const Size(0, 32),
                 ),
+                onPressed: () => openLink(item.meetingLink),
+                child: const Text('Join', style: TextStyle(fontSize: 12)),
+              )
+            else
+              _ReminderButton(item: item),
+          ],
         ],
       ),
     );
+  }
+}
+
+/// The bell next to an upcoming class: tap to get a phone notification
+/// before the class starts, tap again to remove it.
+class _ReminderButton extends StatelessWidget {
+  final StudentClassScheduleModel item;
+
+  const _ReminderButton({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = Get.find<StudentCourseController>();
+
+    return Obx(() {
+      final isSet = controller.remindedClassIds.contains(item.id);
+
+      return IconButton(
+        tooltip: isSet ? 'Remove reminder' : 'Remind me',
+        visualDensity: VisualDensity.compact,
+        icon: Icon(
+          isSet ? Icons.notifications_active : Icons.notifications_none_outlined,
+          color: isSet ? AppColors.primaryNavy : AppColors.textSecondary,
+        ),
+        onPressed: () async {
+          final message = await controller.toggleReminder(item);
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+          }
+        },
+      );
+    });
   }
 }
 
@@ -252,11 +330,7 @@ class _RecordedLectureTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Playing "${lecture.title}"...')),
-        );
-      },
+      onTap: () => openLink(lecture.recordingUrl),
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: const BoxDecoration(

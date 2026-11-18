@@ -7,8 +7,10 @@ import '../../controllers/student/student_dashboard_controller.dart';
 import '../../controllers/student/student_exam_controller.dart';
 import '../../controllers/student/student_fee_controller.dart';
 import '../../controllers/student/student_notification_controller.dart';
+import '../../controllers/student/student_placement_controller.dart';
 import '../../controllers/student/student_profile_controller.dart';
-import '../../controllers/student/student_self_attendance_controller.dart';
+// Self attendance is switched off for now.
+// import '../../controllers/student/student_self_attendance_controller.dart';
 
 /// Creates all the controllers needed by the student side of the app.
 ///
@@ -23,10 +25,11 @@ class StudentBinding extends Bindings {
     Get.lazyPut<StudentAssignmentController>(() => StudentAssignmentController());
     Get.lazyPut<StudentExamController>(() => StudentExamController());
     Get.lazyPut<StudentAttendanceController>(() => StudentAttendanceController());
-    Get.lazyPut<StudentSelfAttendanceController>(() => StudentSelfAttendanceController());
+    // Get.lazyPut<StudentSelfAttendanceController>(() => StudentSelfAttendanceController());
     Get.lazyPut<StudentFeeController>(() => StudentFeeController());
     Get.lazyPut<StudentCertificateController>(() => StudentCertificateController());
     Get.lazyPut<StudentProfileController>(() => StudentProfileController());
     Get.lazyPut<StudentNotificationController>(() => StudentNotificationController());
+    Get.lazyPut<StudentPlacementController>(() => StudentPlacementController());
   }
 }

@@ -28,12 +28,14 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _decideWhereToGo() async {
-    // Wait a couple of seconds so the splash screen is actually visible.
-    await Future.delayed(const Duration(seconds: 2));
+    // Just long enough to see the logo; the session check runs right after.
+    await Future.delayed(const Duration(milliseconds: 300));
 
     if (!mounted) return;
 
     final authController = Get.find<AuthController>();
+    await authController.checkSavedSession();
+    if (!mounted) return;
 
     // `Get.offAllNamed` replaces the whole navigation history with the
     // next screen, so the user can't press "back" to return here.
@@ -50,7 +52,7 @@ class _SplashScreenState extends State<SplashScreen> {
     // status bar to use light/white icons ourselves - otherwise they'd
     // default to dark icons, which would be invisible on our navy
     // background.
-    return const AnnotatedRegion<SystemUiOverlayStyle>(
+    return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.primaryNavy,
@@ -58,18 +60,21 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.school_outlined, size: 72, color: AppColors.white),
-              SizedBox(height: 16),
-              Text(
-                'Campus LMS',
-                style: TextStyle(
+              // A white backdrop behind the logo, so it reads cleanly
+              // against the navy background no matter what's around
+              // the seal's edge in the source image.
+              Container(
+                width: 140,
+                height: 140,
+                padding: const EdgeInsets.all(14),
+                decoration: const BoxDecoration(
                   color: AppColors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+                  shape: BoxShape.circle,
                 ),
+                child: Image.asset('assets/images/logo.png'),
               ),
-              SizedBox(height: 24),
-              CircularProgressIndicator(color: AppColors.white),
+              const SizedBox(height: 28),
+              const CircularProgressIndicator(color: AppColors.white),
             ],
           ),
         ),

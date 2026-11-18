@@ -42,6 +42,16 @@ dependencies:
   # GetStorage: a very simple way to save small pieces of data on the device,
   # like "is the user logged in" or "what is the user's name".
   get_storage: ^2.1.1
+  http: ^1.6.0
+  flutter_secure_storage: ^11.2.0
+  url_launcher: ^6.3.3
+  flutter_local_notifications: ^22.3.3
+  timezone: ^0.11.2
+  qr_flutter: ^4.1.0
+  pdf: ^3.13.1
+  printing: ^5.15.1
+  file_picker: ^13.3.2
+  upgrader: ^13.8.0
 
 dev_dependencies:
   flutter_test:
@@ -64,6 +74,9 @@ flutter:
   # included with your application, so that you can use the icons in
   # the material Icons class.
   uses-material-design: true
+
+  assets:
+    - assets/images/logo.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -1,0 +1,1 @@
+[{"id":1,"exam":6,"exam_title":"tt-02","student":"00000000-0000-4000-8000-000000000001","student_name":"Test Student","started_at":"2026-10-08T14:17:31.895452+05:30","submitted_at":"2026-10-08T14:17:55.555585+05:30","score":1,"evaluated":true,"answers":[{"id":1,"attempt":1,"question":2,"selected_choice":5,"subjective_answer":""}],"tab_switches":1,"auto_submitted":false}]

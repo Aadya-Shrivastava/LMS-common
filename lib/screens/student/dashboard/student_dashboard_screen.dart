@@ -8,6 +8,7 @@ import '../../../core/routes/app_routes.dart';
 import '../../../models/dashboard_list_item_model.dart';
 import 'package:lms/models/student/course_progress_model.dart';
 import '../../../widgets/custom_loader.dart';
+import '../../../widgets/error_state_widget.dart';
 import '../../../widgets/quick_action_ring.dart';
 import '../../../widgets/stat_pill.dart';
 import '../../../widgets/status_list_tile.dart';
@@ -42,16 +43,18 @@ class StudentDashboardScreen extends GetView<StudentDashboardController> {
             _buildNavyHeader(context, authController),
             Expanded(
               child: Obx(() {
-                if (controller.isLoading.value || controller.stats.value == null) {
-                  return const CustomLoader();
+                final error = controller.errorMessage.value;
+                if (error != null && controller.stats.value == null) {
+                  return ErrorStateWidget(message: error, onRetry: controller.loadDashboardData);
+                }
+
+                if (controller.isLoading.value && controller.stats.value == null) {
+                  return const CustomLoader(layout: SkeletonLayout.dashboard);
                 }
 
                 return RefreshIndicator(
                   onRefresh: controller.loadDashboardData,
-                  child: SafeArea(
-                    top: false,
-                    child: _buildDashboardContent(authController),
-                  ),
+                  child: SafeArea(top: false, child: _buildDashboardContent(authController)),
                 );
               }),
             ),
@@ -241,11 +244,7 @@ class StudentDashboardScreen extends GetView<StudentDashboardController> {
       children: [
         Text(
           'Hi $firstName',
-          style: const TextStyle(
-            fontSize: 19,
-            fontWeight: FontWeight.bold,
-            color: AppColors.white,
-          ),
+          style: const TextStyle(fontSize: 19, fontWeight: FontWeight.bold, color: AppColors.white),
         ),
         const SizedBox(height: 4),
         const Text(
@@ -335,8 +334,7 @@ class StudentDashboardScreen extends GetView<StudentDashboardController> {
       // "6/8" -> 6 done out of 8 total, used to fill the ring.
       final doneParts = stats.assignmentsDoneText.split('/');
       final assignmentsDone = int.tryParse(doneParts.isNotEmpty ? doneParts[0] : '') ?? 0;
-      final assignmentsTotal =
-          int.tryParse(doneParts.length > 1 ? doneParts[1] : '') ?? 0;
+      final assignmentsTotal = int.tryParse(doneParts.length > 1 ? doneParts[1] : '') ?? 0;
 
       final overdueAssignments = controller.pendingAssignments
           .where((item) => item.status == ListItemStatus.overdue)
@@ -368,9 +366,7 @@ class StudentDashboardScreen extends GetView<StudentDashboardController> {
             QuickActionRing(
               icon: Icons.assignment_turned_in_outlined,
               label: 'Assignments',
-              subtitle: overdueAssignments == 0
-                  ? 'All on track'
-                  : '$overdueAssignments overdue',
+              subtitle: overdueAssignments == 0 ? 'All on track' : '$overdueAssignments overdue',
               progress: assignmentsTotal == 0 ? 0 : assignmentsDone / assignmentsTotal,
               accentColor: AppColors.statCardGreen,
               onTap: () => Get.toNamed(Routes.studentAssignments),
@@ -428,9 +424,15 @@ class StudentDashboardScreen extends GetView<StudentDashboardController> {
         backgroundColor: backgroundColor,
         actionLabel: actionLabel,
         onActionTap: onActionTap,
-        child: Column(
-          children: [for (final item in items) StatusListTile(item: item)],
-        ),
+        child: items.isEmpty
+            ? const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  'Nothing here right now.',
+                  style: TextStyle(fontSize: 12.5, color: AppColors.textSecondary),
+                ),
+              )
+            : Column(children: [for (final item in items) StatusListTile(item: item)]),
       );
     });
   }
@@ -449,8 +451,7 @@ class StudentDashboardScreen extends GetView<StudentDashboardController> {
         onActionTap: () => Get.toNamed(Routes.studentCourses),
         child: Column(
           children: [
-            for (final course in controller.courseProgress)
-              _buildCourseProgressBar(course),
+            for (final course in controller.courseProgress) _buildCourseProgressBar(course),
           ],
         ),
       );
@@ -534,47 +535,58 @@ class StudentDashboardScreen extends GetView<StudentDashboardController> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: accentColor,
-                      borderRadius: BorderRadius.circular(10),
+              // `Expanded` + `Flexible` let a long title wrap instead of
+              // pushing the action pill off a small screen.
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: accentColor,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(sectionIcon, size: 17, color: AppColors.white),
                     ),
-                    child: Icon(sectionIcon, size: 17, color: AppColors.white),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
+              if (actionLabel != null) const SizedBox(width: 8),
               if (actionLabel != null)
-                GestureDetector(
-                  onTap: onActionTap,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: accentColor,
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      actionLabel,
-                      style: const TextStyle(
-                        color: AppColors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
+                // `Flexible` so with very large text the pill shrinks too,
+                // instead of squeezing the title out.
+                Flexible(
+                  child: GestureDetector(
+                    onTap: onActionTap,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: accentColor,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        actionLabel,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: AppColors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),

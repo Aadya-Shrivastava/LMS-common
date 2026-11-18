@@ -4,6 +4,8 @@ import 'bindings/auth_binding.dart';
 import 'core/routes/app_pages.dart';
 import 'core/routes/app_routes.dart';
 import 'core/theme/app_theme.dart';
+import 'widgets/offline_banner.dart';
+import 'widgets/update_prompt.dart';
 
 /// The root widget of the whole app.
 ///
@@ -30,6 +32,12 @@ class App extends StatelessWidget {
       // Creates AuthController once, right when the app starts, so it's
       // available everywhere (the drawer, every screen's logout button).
       initialBinding: AuthBinding(),
+
+      // Shows the "Offline - showing saved data" strip on every screen,
+      // and the "please update" prompt when the store has a newer version.
+      builder: (context, child) => UpdatePrompt(
+        child: OfflineBanner(child: child ?? const SizedBox.shrink()),
+      ),
     );
   }
 }

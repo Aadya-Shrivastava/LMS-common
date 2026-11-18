@@ -1,0 +1,5 @@
+[
+  {"id": 2, "campus": 1, "campus_name": "Test Campus", "grade": "A", "from_percent": "90.00", "to_percent": "94.00", "grade_point": "8.44", "remarks": "very good", "is_active": true, "created_at": "2026-09-25T15:31:09.275818+05:30", "updated_at": ""},
+  {"id": 1, "campus": 1, "campus_name": "Test Campus", "grade": "A+", "from_percent": "95.00", "to_percent": "100.00", "grade_point": "9.00", "remarks": "EXCELLENT", "is_active": true, "created_at": "2026-09-25T15:30:37.913715+05:30", "updated_at": ""},
+  {"id": 9, "campus": 1, "campus_name": "Test Campus", "grade": "Z", "from_percent": "0.00", "to_percent": "1.00", "grade_point": "0.00", "remarks": "old band", "is_active": false, "created_at": "2026-09-25T15:30:37.913715+05:30", "updated_at": ""}
+]

@@ -1,29 +1,20 @@
 import 'package:get/get.dart';
-import '../../bindings/faculty/faculty_binding.dart';
 import '../../bindings/student/student_binding.dart';
 import '../../screens/auth/forgot_password/forgot_password_screen.dart';
 import '../../screens/auth/login/login_screen.dart';
 import '../../screens/auth/splash/splash_screen.dart';
-import '../../screens/faculty/assignments/faculty_assignments_screen.dart';
-import '../../screens/faculty/assignments/question_bank_screen.dart';
-import '../../screens/faculty/attendance/faculty_attendance_screen.dart';
-import '../../screens/faculty/attendance/student_detail_screen.dart';
-import '../../screens/faculty/attendance/student_performance_screen.dart';
-import '../../screens/faculty/courses/live_classes_screen.dart';
-import '../../screens/faculty/courses/study_material_screen.dart';
-import '../../screens/faculty/courses/timetable_screen.dart';
-import '../../screens/faculty/dashboard/faculty_dashboard_screen.dart';
-import '../../screens/faculty/notifications/faculty_notifications_screen.dart';
-import '../../screens/faculty/profile/faculty_profile_screen.dart';
 import '../../screens/student/assignments/student_assignments_screen.dart';
 import '../../screens/student/assignments/student_exams_results_screen.dart';
 import '../../screens/student/attendance/student_attendance_screen.dart';
-import '../../screens/student/attendance/student_self_attendance_qr_screen.dart';
+// Self attendance is switched off for now (see the route below).
+// import '../../screens/student/attendance/student_self_attendance_qr_screen.dart';
 import '../../screens/student/courses/student_courses_screen.dart';
 import '../../screens/student/courses/student_live_classes_screen.dart';
 import '../../screens/student/courses/student_timetable_screen.dart';
 import '../../screens/student/dashboard/student_dashboard_screen.dart';
 import '../../screens/student/notifications/student_notifications_screen.dart';
+import '../../screens/student/placements/student_placements_screen.dart';
+import '../../screens/student/profile/student_account_settings_screen.dart';
 import '../../screens/student/profile/student_certificates_screen.dart';
 import '../../screens/student/profile/student_fees_screen.dart';
 import '../../screens/student/profile/student_profile_screen.dart';
@@ -83,11 +74,12 @@ class AppPages {
       page: () => const StudentAttendanceScreen(),
       binding: StudentBinding(),
     ),
-    GetPage(
-      name: Routes.studentSelfAttendanceQr,
-      page: () => const StudentSelfAttendanceQrScreen(),
-      binding: StudentBinding(),
-    ),
+    // Self attendance is switched off for now (no backend API yet).
+    // GetPage(
+    //   name: Routes.studentSelfAttendanceQr,
+    //   page: () => const StudentSelfAttendanceQrScreen(),
+    //   binding: StudentBinding(),
+    // ),
     GetPage(
       name: Routes.studentFees,
       page: () => const StudentFeesScreen(),
@@ -96,6 +88,11 @@ class AppPages {
     GetPage(
       name: Routes.studentCertificates,
       page: () => const StudentCertificatesScreen(),
+      binding: StudentBinding(),
+    ),
+    GetPage(
+      name: Routes.studentPlacements,
+      page: () => const StudentPlacementsScreen(),
       binding: StudentBinding(),
     ),
     GetPage(
@@ -108,62 +105,11 @@ class AppPages {
       page: () => const StudentProfileScreen(),
       binding: StudentBinding(),
     ),
+    GetPage(
+      name: Routes.studentAccountSettings,
+      page: () => const StudentAccountSettingsScreen(),
+      binding: StudentBinding(),
+    ),
 
-    // ---- Faculty ----
-    GetPage(
-      name: Routes.facultyDashboard,
-      page: () => const FacultyDashboardScreen(),
-      binding: FacultyBinding(),
-    ),
-    GetPage(
-      name: Routes.facultyLiveClasses,
-      page: () => const LiveClassesScreen(),
-      binding: FacultyBinding(),
-    ),
-    GetPage(
-      name: Routes.facultyTimetable,
-      page: () => const TimetableScreen(),
-      binding: FacultyBinding(),
-    ),
-    GetPage(
-      name: Routes.facultyStudyMaterial,
-      page: () => const StudyMaterialScreen(),
-      binding: FacultyBinding(),
-    ),
-    GetPage(
-      name: Routes.facultyAssignments,
-      page: () => const FacultyAssignmentsScreen(),
-      binding: FacultyBinding(),
-    ),
-    GetPage(
-      name: Routes.facultyQuestionBank,
-      page: () => const QuestionBankScreen(),
-      binding: FacultyBinding(),
-    ),
-    GetPage(
-      name: Routes.facultyAttendance,
-      page: () => const FacultyAttendanceScreen(),
-      binding: FacultyBinding(),
-    ),
-    GetPage(
-      name: Routes.facultyStudentPerformance,
-      page: () => const StudentPerformanceScreen(),
-      binding: FacultyBinding(),
-    ),
-    GetPage(
-      name: Routes.facultyStudentDetail,
-      page: () => const StudentDetailScreen(),
-      binding: FacultyBinding(),
-    ),
-    GetPage(
-      name: Routes.facultyAccountSettings,
-      page: () => const FacultyProfileScreen(),
-      binding: FacultyBinding(),
-    ),
-    GetPage(
-      name: Routes.facultyNotifications,
-      page: () => const FacultyNotificationsScreen(),
-      binding: FacultyBinding(),
-    ),
   ];
 }

@@ -21,20 +21,10 @@ class Routes {
   static const String studentSelfAttendanceQr = '/student/self-attendance-qr';
   static const String studentFees = '/student/fees';
   static const String studentCertificates = '/student/certificates';
+  static const String studentPlacements = '/student/placements';
   static const String studentNotifications = '/student/notifications';
   static const String studentProfile = '/student/profile';
+  static const String studentAccountSettings = '/student/account-settings';
 
-  // ---- Faculty ----
-  static const String facultyDashboard = '/faculty/dashboard';
-  static const String facultyLiveClasses = '/faculty/live-classes';
-  static const String facultyTimetable = '/faculty/timetable';
-  static const String facultyStudyMaterial = '/faculty/study-material';
-  static const String facultyAssignments = '/faculty/assignments';
-  static const String facultyQuestionBank = '/faculty/question-bank';
-  static const String facultyAttendance = '/faculty/attendance';
-  static const String facultyStudentPerformance =
-      '/faculty/student-performance';
-  static const String facultyStudentDetail = '/faculty/student-detail';
-  static const String facultyAccountSettings = '/faculty/account-settings';
-  static const String facultyNotifications = '/faculty/notifications';
+ 
 }

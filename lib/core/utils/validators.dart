@@ -22,6 +22,23 @@ class Validators {
     return null;
   }
 
+  /// The login field: an email address or a username (the login API
+  /// accepts either). Usernames are letters, numbers and . _ - only.
+  static String? emailOrUsername(String? value) {
+    final text = value?.trim() ?? '';
+    if (text.isEmpty) {
+      return 'Please enter your email or username';
+    }
+
+    if (text.contains('@')) return email(text);
+
+    if (!RegExp(r'^[\w.\-]{3,}$').hasMatch(text)) {
+      return 'Please enter a valid username';
+    }
+
+    return null;
+  }
+
   static String? password(String? value) {
     if (value == null || value.isEmpty) {
       return 'Please enter your password';

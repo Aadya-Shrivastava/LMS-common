@@ -1,5 +1,8 @@
+import 'dart:async';
 import 'package:get/get.dart';
+import '../../core/network/saved_then_fresh.dart';
 import '../../models/dashboard_list_item_model.dart';
+import '../auth_controller.dart';
 import 'package:lms/models/student/course_progress_model.dart';
 import 'package:lms/models/student/student_dashboard_stats_model.dart';
 import 'package:lms/services/student/student_dashboard_service.dart';
@@ -10,6 +13,10 @@ class StudentDashboardController extends GetxController {
   final StudentDashboardService _service = StudentDashboardService();
 
   final RxBool isLoading = true.obs;
+
+  /// Set when loading failed, so the screen can show it with a retry
+  /// button. Null when everything loaded fine.
+  final RxnString errorMessage = RxnString();
 
   final Rx<StudentDashboardStats?> stats = Rx<StudentDashboardStats?>(null);
   final RxList<DashboardListItem> todaysClassSchedule = <DashboardListItem>[].obs;
@@ -22,23 +29,27 @@ class StudentDashboardController extends GetxController {
     loadDashboardData();
   }
 
-  /// Loads everything the dashboard needs, all at once. Kept as its
+  /// Loads everything the dashboard needs in one API call. Kept as its
   /// own method so pull-to-refresh has something to call.
   Future<void> loadDashboardData() async {
     isLoading.value = true;
+    errorMessage.value = null;
 
-    final results = await Future.wait([
-      _service.getStats(),
-      _service.getTodaysClassSchedule(),
-      _service.getCourseProgress(),
-      _service.getPendingAssignments(),
-    ]);
+    errorMessage.value = await loadSavedThenFresh(_service.getDashboard, (data) {
+      stats.value = data.stats;
+      todaysClassSchedule.assignAll(data.todaysClassSchedule);
+      courseProgress.assignAll(data.courseProgress);
+      pendingAssignments.assignAll(data.pendingAssignments);
+      isLoading.value = false;
 
-    stats.value = results[0] as StudentDashboardStats;
-    todaysClassSchedule.assignAll(results[1] as List<DashboardListItem>);
-    courseProgress.assignAll(results[2] as List<CourseProgressModel>);
-    pendingAssignments.assignAll(results[3] as List<DashboardListItem>);
-
+      // The login API doesn't say who the student is, so fill in their
+      // real name/course/batch from here.
+      unawaited(Get.find<AuthController>().updateUserDetails(
+        name: data.info.fullName,
+        department: data.info.course,
+        designation: data.info.batchText,
+      ));
+    });
     isLoading.value = false;
   }
 }

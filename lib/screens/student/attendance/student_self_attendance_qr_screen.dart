@@ -387,7 +387,7 @@ class _CurrentSessionBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${session.subject} - ${session.batch}',
+                  [session.subject, session.batch].where((s) => s.isNotEmpty).join(' - '),
                   style: const TextStyle(
                     color: AppColors.white,
                     fontWeight: FontWeight.bold,
@@ -396,7 +396,7 @@ class _CurrentSessionBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${session.facultyName} · ${session.timeRange}',
+                  [session.facultyName, session.timeRange].where((s) => s.isNotEmpty).join(' · '),
                   style: const TextStyle(color: Colors.white70, fontSize: 12.5),
                 ),
               ],
@@ -430,10 +430,19 @@ class _LocationDetailRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
-          Text(value, style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700)),
+          Expanded(
+            child: Text(label, style: const TextStyle(fontSize: 12.5, color: AppColors.textSecondary)),
+          ),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+            ),
+          ),
         ],
       ),
     );

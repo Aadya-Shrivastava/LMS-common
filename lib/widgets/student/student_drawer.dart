@@ -64,11 +64,12 @@ class StudentDrawer extends StatelessWidget {
               label: 'Attendance',
               route: Routes.studentAttendance,
             ),
-            _buildItem(
-              icon: Icons.qr_code_scanner_outlined,
-              label: 'Self Attendance (QR)',
-              route: Routes.studentSelfAttendanceQr,
-            ),
+            // Self attendance is switched off for now (no backend API yet).
+            // _buildItem(
+            //   icon: Icons.qr_code_scanner_outlined,
+            //   label: 'Self Attendance (QR)',
+            //   route: Routes.studentSelfAttendanceQr,
+            // ),
             _buildItem(
               icon: Icons.currency_rupee_outlined,
               label: 'Fees',
@@ -80,6 +81,11 @@ class StudentDrawer extends StatelessWidget {
               route: Routes.studentCertificates,
             ),
             _buildItem(
+              icon: Icons.work_outline,
+              label: 'Placements',
+              route: Routes.studentPlacements,
+            ),
+            _buildItem(
               icon: Icons.notifications_outlined,
               label: 'Notifications',
               route: Routes.studentNotifications,
@@ -87,9 +93,14 @@ class StudentDrawer extends StatelessWidget {
 
             _buildSectionLabel('Account'),
             _buildItem(
+              icon: Icons.person_outline,
+              label: 'My Profile',
+              route: Routes.studentProfile,
+            ),
+            _buildItem(
               icon: Icons.settings_outlined,
               label: 'Account Settings',
-              route: Routes.studentProfile,
+              route: Routes.studentAccountSettings,
             ),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.white70),

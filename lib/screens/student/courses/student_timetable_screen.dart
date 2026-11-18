@@ -7,6 +7,7 @@ import '../../../core/utils/date_formatters.dart';
 import 'package:lms/models/student/student_timetable_slot_model.dart';
 import '../../../widgets/custom_app_bar.dart';
 import '../../../widgets/custom_loader.dart';
+import '../../../widgets/error_state_widget.dart';
 import '../../../widgets/section_card.dart';
 import '../../../widgets/stat_pill.dart';
 import '../../../widgets/student/student_drawer.dart';
@@ -18,17 +19,21 @@ class StudentTimetableScreen extends GetView<StudentCourseController> {
 
   @override
   Widget build(BuildContext context) {
+    controller.ensureTimetableLoaded();
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: const CustomAppBar(
         title: 'My Timetable',
-        subtitle: 'Electrician · Batch A · Semester 2',
         fallbackRoute: Routes.studentDashboard,
       ),
       drawer: const StudentDrawer(currentRoute: Routes.studentTimetable),
       body: Obx(() {
-        if (controller.isLoadingTimetable.value) {
-          return const CustomLoader();
+        final error = controller.timetableError.value;
+        if (error != null && !controller.hasLoadedTimetable) {
+          return ErrorStateWidget(message: error, onRetry: controller.loadTimetable);
+        }
+        if (controller.isLoadingTimetable.value && !controller.hasLoadedTimetable) {
+          return const CustomLoader(layout: SkeletonLayout.timetable);
         }
 
         return RefreshIndicator(
@@ -43,12 +48,22 @@ class StudentTimetableScreen extends GetView<StudentCourseController> {
               SectionCard(
                 title: controller.selectedDay.value,
                 padding: EdgeInsets.zero,
-                child: Column(
-                  children: [
-                    for (final slot in controller.selectedDaySlots)
-                      _TimetableSlotTile(slot: slot),
-                  ],
-                ),
+                child: controller.selectedDaySlots.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Center(
+                          child: Text(
+                            'No classes on this day.',
+                            style: TextStyle(color: AppColors.textSecondary),
+                          ),
+                        ),
+                      )
+                    : Column(
+                        children: [
+                          for (final slot in controller.selectedDaySlots)
+                            _TimetableSlotTile(slot: slot),
+                        ],
+                      ),
               ),
             ],
           ),
@@ -58,10 +73,11 @@ class StudentTimetableScreen extends GetView<StudentCourseController> {
   }
 
   Widget _buildStatsRow() {
-    return SizedBox(
-      height: 56,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
+    // Scrolls sideways if the pills don't fit, and takes whatever height
+    // they need (a fixed height cut them off with large system fonts).
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
         children: [
           StatPill(
             title: "Today's Classes",
@@ -184,9 +200,11 @@ class _TimetableSlotTile extends StatelessWidget {
                       ),
                       Row(
                         children: [
-                          Text(
-                            '${slot.facultyName} · ${slot.room}',
-                            style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                          Flexible(
+                            child: Text(
+                              '${slot.facultyName} · ${slot.room}',
+                              style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                            ),
                           ),
                           if (slot.isOnline) ...[
                             const SizedBox(width: 6),

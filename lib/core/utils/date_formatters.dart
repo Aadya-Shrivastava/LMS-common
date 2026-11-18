@@ -29,6 +29,26 @@ String formatDateTime(DateTime dateTime) {
       '$hour12:$minute $period';
 }
 
+/// Formats a time of day only, e.g. "02:00 PM".
+String formatTime(DateTime dateTime) {
+  final hour24 = dateTime.hour;
+  final hour12 = hour24 % 12 == 0 ? 12 : hour24 % 12;
+  final period = hour24 >= 12 ? 'PM' : 'AM';
+
+  return '${_twoDigits(hour12)}:${_twoDigits(dateTime.minute)} $period';
+}
+
+/// Formats API time text like "14:00:00" as "02:00 PM". Returns the
+/// text unchanged if it isn't in that shape.
+String formatTimeText(String text) {
+  final parts = text.split(':');
+  final hour = parts.isNotEmpty ? int.tryParse(parts[0]) : null;
+  final minute = parts.length > 1 ? int.tryParse(parts[1]) : null;
+  if (hour == null || minute == null) return text;
+
+  return formatTime(DateTime(2000, 1, 1, hour, minute));
+}
+
 /// True if the current time of day falls inside a "HH:MM-HH:MM" range,
 /// e.g. `isNowWithinTimeRange('09:00-09:45')`. Used on the Timetable
 /// screen to decide whether an online class's "Join" button should be

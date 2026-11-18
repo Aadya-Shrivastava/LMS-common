@@ -1,16 +1,37 @@
+import '../../core/constants/app_urls.dart';
+import '../../core/network/api_client.dart';
+import '../../core/utils/json_parsers.dart';
 import 'package:lms/models/student/self_attendance_model.dart';
 
-/// Provides the current live class (if any) and the student's
-/// self-marked attendance log.
+/// Provides the current live class (API 25) and the student's
+/// self-marked attendance log (still sample data - the API document
+/// has no self-attendance log or "mark attendance" API).
 class StudentSelfAttendanceService {
-  Future<CurrentSessionModel?> getCurrentSession() async {
-    await Future.delayed(const Duration(milliseconds: 300));
+  final ApiClient _apiClient = ApiClient();
 
-    return const CurrentSessionModel(
-      subject: 'Basic Electrical Wiring',
-      batch: 'Batch A',
-      facultyName: 'Er. R. Kumar',
-      timeRange: '09:00 - 10:00 AM',
+  /// The class happening right now, or null when there's none (the
+  /// API says "No Class" outside class hours) or it can't be loaded.
+  Future<CurrentSessionModel?> getCurrentSession() async {
+    final Map<String, dynamic> json;
+    try {
+      json = jsonMap(await _apiClient.get(AppUrls.attendanceCurrentSession));
+    } on ApiException {
+      return null;
+    }
+
+    final status = jsonString(json['status']);
+    if (json.isEmpty || status.toLowerCase() == 'no class') return null;
+
+    // "Electricak - BATCH A" -> subject "Electricak", batch "BATCH A".
+    final sessionName = jsonString(json['session_name']);
+    final split = sessionName.lastIndexOf(' - ');
+    final timeWindow = jsonString(json['time_window']);
+
+    return CurrentSessionModel(
+      subject: split == -1 ? sessionName : sessionName.substring(0, split),
+      batch: split == -1 ? '' : sessionName.substring(split + 3),
+      facultyName: jsonString(json['faculty_name']),
+      timeRange: timeWindow.toUpperCase() == 'N/A' ? '' : timeWindow,
     );
   }
 

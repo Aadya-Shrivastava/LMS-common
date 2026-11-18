@@ -5,10 +5,15 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/routes/app_routes.dart';
 import 'package:lms/models/student/fee_receipt_model.dart';
 import 'package:lms/models/student/fee_summary_model.dart';
+import 'package:lms/models/student/student_fee_item_model.dart';
 import '../../../widgets/custom_app_bar.dart';
 import '../../../widgets/custom_loader.dart';
+import '../../../widgets/documents/document_viewer_screen.dart';
+import '../../../widgets/documents/fee_receipt_document.dart';
 import '../../../widgets/empty_state_widget.dart';
+import '../../../widgets/error_state_widget.dart';
 import '../../../widgets/section_card.dart';
+import '../../../widgets/status_badge.dart';
 import '../../../widgets/student/student_drawer.dart';
 
 String _formatRupees(double amount) => '₹${amount.round()}';
@@ -58,7 +63,11 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
       drawer: const StudentDrawer(currentRoute: Routes.studentFees),
       body: Obx(() {
         final summary = controller.summary.value;
-        if (controller.isLoading.value || summary == null) {
+        final error = controller.errorMessage.value;
+        if (error != null && summary == null) {
+          return ErrorStateWidget(message: error, onRetry: controller.loadFees);
+        }
+        if (summary == null) {
           return const CustomLoader();
         }
 
@@ -157,14 +166,15 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
                   width: double.infinity,
                   child: FilledButton(
                     style: FilledButton.styleFrom(backgroundColor: AppColors.primaryNavy),
+                    // There's no online payment API yet, so fees are
+                    // paid at the campus fee counter for now.
                     onPressed: summary.amountDue <= 0
                         ? null
                         : () {
-                            controller.payNextInstallment();
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
+                              const SnackBar(
                                 content: Text(
-                                  '${_formatRupees(summary.nextInstallmentAmount)} paid successfully',
+                                  'Online payment is coming soon. Please pay at the fee counter.',
                                 ),
                               ),
                             );
@@ -174,6 +184,23 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 16),
+          SectionCard(
+            title: 'Fee Breakdown',
+            padding: EdgeInsets.zero,
+            child: controller.fees.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(24),
+                    child: EmptyStateWidget(
+                      icon: Icons.receipt_outlined,
+                      title: 'No fees yet',
+                      message: 'Fees charged to you will show up here.',
+                    ),
+                  )
+                : Column(
+                    children: [for (final fee in controller.fees) _FeeTile(fee: fee)],
+                  ),
           ),
         ],
       ),
@@ -186,6 +213,17 @@ class _StudentFeesScreenState extends State<StudentFeesScreen>
       child: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          if (controller.paidByFeeHead.isNotEmpty) ...[
+            SectionCard(
+              title: 'Paid by Fee Head',
+              child: Column(
+                children: [
+                  for (final item in controller.paidByFeeHead) _FeeHeadPaidRow(item: item),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
           SectionCard(
             title: 'Payment History',
             padding: EdgeInsets.zero,
@@ -261,14 +299,114 @@ class _AmountCard extends StatelessWidget {
   }
 }
 
+/// One row in "Fee Breakdown": the fee head, what was charged/paid, and
+/// its status.
+class _FeeTile extends StatelessWidget {
+  final StudentFeeItemModel fee;
+
+  const _FeeTile({required this.fee});
+
+  @override
+  Widget build(BuildContext context) {
+    final isPaid = fee.dueAmount <= 0;
+    final dueText = fee.dueDateText.isEmpty ? '' : ' · Due ${fee.dueDateText}';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.cardBorder)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  fee.feeHead,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${_formatRupees(fee.paidAmount)} of ${_formatRupees(fee.netAmount)} paid$dueText',
+                  style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                ),
+              ],
+            ),
+          ),
+          StatusBadge(
+            label: isPaid
+                ? (fee.status.isEmpty ? 'Paid' : fee.status)
+                : '${_formatRupees(fee.dueAmount)} due',
+            type: isPaid ? BadgeType.success : BadgeType.danger,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One row in "Paid by Fee Head", e.g. "Tution Fees ..... ₹120000".
+class _FeeHeadPaidRow extends StatelessWidget {
+  final FeeHeadPaidModel item;
+
+  const _FeeHeadPaidRow({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.feeHead,
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13.5),
+                ),
+                if (item.fineAmount > 0)
+                  Text(
+                    'Includes ${_formatRupees(item.fineAmount)} late fee',
+                    style: const TextStyle(fontSize: 11.5, color: AppColors.textSecondary),
+                  ),
+              ],
+            ),
+          ),
+          Text(
+            _formatRupees(item.amount + item.fineAmount),
+            style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ReceiptTile extends StatelessWidget {
   final FeeReceiptModel receipt;
 
   const _ReceiptTile({required this.receipt});
 
+  void _openReceipt(BuildContext context) {
+    DocumentViewerScreen.open(
+      context,
+      title: 'Receipt ${receipt.receiptNo}',
+      fileName: DocumentViewerScreen.safeFileName('Receipt_${receipt.receiptNo}'),
+      pageWidth: FeeReceiptDocument.pageWidth,
+      page: FeeReceiptDocument(
+        receipt: receipt,
+        instituteName: Get.find<StudentFeeController>().instituteName.value,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return InkWell(
+      onTap: () => _openReceipt(context),
+      child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: const BoxDecoration(
         border: Border(top: BorderSide(color: AppColors.cardBorder)),
@@ -296,19 +434,16 @@ class _ReceiptTile extends StatelessWidget {
             style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
           ),
           const SizedBox(width: 8),
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 10),
-              minimumSize: const Size(0, 32),
-            ),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Downloading receipt ${receipt.receiptNo}...')),
-              );
-            },
-            child: const Text('Download', style: TextStyle(fontSize: 11)),
+          // An icon (not a "Download" text button) so the row still fits a
+          // small phone next to a 6-digit amount.
+          IconButton(
+            tooltip: 'View receipt',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.receipt_long_outlined, size: 20),
+            onPressed: () => _openReceipt(context),
           ),
         ],
+      ),
       ),
     );
   }

@@ -7,12 +7,11 @@ import '../../../models/user_model.dart';
 import '../../../widgets/custom_button.dart';
 import '../../../widgets/custom_text_field.dart';
 
-/// The login screen: email, password, a Student/Faculty switch, and a
-/// login button.
+/// The student login screen: email or username, password, and a login
+/// button.
 ///
-/// There's no real backend yet, so any email and password will work -
-/// picking "Faculty" or "Student" simply decides which mock account and
-/// which dashboard you're sent to. See AuthService for the mock data.
+/// Logs in against the real backend (see AuthService). This app is
+/// student-only, so login always signs in as a student.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -24,12 +23,8 @@ class _LoginScreenState extends State<LoginScreen> {
   // A GlobalKey lets us tell the Form widget "please validate yourself".
   final _formKey = GlobalKey<FormState>();
 
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController();
   final _passwordController = TextEditingController();
-
-  // Which role is currently selected on screen. Defaults to Faculty,
-  // since that's the portal this app is based on.
-  UserRole _selectedRole = UserRole.faculty;
 
   // We look up the AuthController that was already created when the
   // app started (see bindings/auth_binding.dart + app.dart).
@@ -37,7 +32,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -49,9 +44,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!isValid) return;
 
     _authController.login(
-      email: _emailController.text.trim(),
+      identifier: _identifierController.text.trim(),
       password: _passwordController.text,
-      role: _selectedRole,
+      role: UserRole.student,
     );
   }
 
@@ -69,21 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const SizedBox(height: 40),
-                  const Icon(
-                    Icons.school_outlined,
-                    size: 56,
-                    color: AppColors.primaryNavy,
-                  ),
-                  const SizedBox(height: 12),
-                  const Text(
-                    'Campus LMS',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
+                  Image.asset('assets/images/logo.png', height: 136),
                   const SizedBox(height: 4),
                   const Text(
                     'Sign in to continue',
@@ -92,16 +73,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 32),
 
-                  // The Student/Faculty role switch.
-                  _buildRoleSelector(),
-                  const SizedBox(height: 20),
-
                   CustomTextField(
-                    controller: _emailController,
-                    label: 'Email',
-                    hint: 'you@example.com',
+                    controller: _identifierController,
+                    label: 'Email or Username',
+                    hint: 'you@example.com or username',
                     keyboardType: TextInputType.emailAddress,
-                    validator: Validators.email,
+                    validator: Validators.emailOrUsername,
                   ),
                   const SizedBox(height: 16),
                   CustomTextField(
@@ -131,44 +108,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Builds the two-button switch that lets the user pick their role
-  /// before logging in.
-  Widget _buildRoleSelector() {
-    return Row(
-      children: [
-        Expanded(child: _buildRoleButton(UserRole.student, 'Student')),
-        const SizedBox(width: 12),
-        Expanded(child: _buildRoleButton(UserRole.faculty, 'Faculty')),
-      ],
-    );
-  }
-
-  Widget _buildRoleButton(UserRole role, String label) {
-    final isSelected = _selectedRole == role;
-
-    return GestureDetector(
-      onTap: () => setState(() => _selectedRole = role),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryNavy : AppColors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isSelected ? AppColors.primaryNavy : AppColors.cardBorder,
-          ),
-        ),
-        child: Text(
-          label,
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            color: isSelected ? AppColors.white : AppColors.textPrimary,
-            fontWeight: FontWeight.w600,
           ),
         ),
       ),

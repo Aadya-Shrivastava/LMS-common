@@ -1,0 +1,1 @@
+[{"id":1,"min_required_attendance_pct":"75.00","low_attendance_alert_threshold_pct":"80.00","exam_eligibility_lock_below_pct":"65.00","late_checkin_grace_period_mins":15,"auto_mark_late":true,"notify_parent_on_absence":true,"qr_code_validity_mins":5,"qr_refresh_interval_secs":0,"qr_restrict_to_geofence":true,"created_at":"2026-09-25T15:39:33.911403+05:30","campus":1}]

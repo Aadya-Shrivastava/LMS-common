@@ -1,72 +1,110 @@
+import '../../core/constants/app_urls.dart';
+import '../../core/network/api_client.dart';
+import '../../core/utils/date_formatters.dart';
+import '../../core/utils/json_parsers.dart';
 import '../../models/dashboard_list_item_model.dart';
 import 'package:lms/models/student/course_progress_model.dart';
 import 'package:lms/models/student/student_dashboard_stats_model.dart';
 
-/// Provides everything shown on the student dashboard: the headline
-/// stats, today's class schedule, course progress, and pending
-/// assignments.
-class StudentDashboardService {
-  Future<StudentDashboardStats> getStats() async {
-    await Future.delayed(const Duration(milliseconds: 400));
+/// Who the student is, as sent by the dashboard API - used to fill in
+/// the name/course/batch shown in the header and drawer.
+class StudentDashboardInfo {
+  final String fullName;
+  final String course;
+  final String batchText;
 
-    return const StudentDashboardStats(
-      attendancePercent: 92,
-      assignmentsDoneText: '6/8',
-      upcomingExamsCount: 2,
-      feeDueText: '₹3,000',
+  const StudentDashboardInfo({
+    required this.fullName,
+    required this.course,
+    required this.batchText,
+  });
+}
+
+/// Everything the dashboard API sends back, already turned into the
+/// models the dashboard screen uses.
+class StudentDashboardData {
+  final StudentDashboardInfo info;
+  final StudentDashboardStats stats;
+  final List<DashboardListItem> todaysClassSchedule;
+  final List<CourseProgressModel> courseProgress;
+  final List<DashboardListItem> pendingAssignments;
+
+  const StudentDashboardData({
+    required this.info,
+    required this.stats,
+    required this.todaysClassSchedule,
+    required this.courseProgress,
+    required this.pendingAssignments,
+  });
+}
+
+/// Loads the student dashboard from `AppUrls.studentDashboard`.
+class StudentDashboardService {
+  final ApiClient _apiClient = ApiClient();
+
+  Future<StudentDashboardData> getDashboard() async {
+    final json = jsonMap(await _apiClient.get(AppUrls.studentDashboard));
+
+    final info = jsonMap(json['student_info']);
+    final stats = jsonMap(json['stats']);
+
+    final batchParts = [
+      jsonString(info['batch_name']),
+      jsonString(info['semester_name']),
+    ].where((part) => part.isNotEmpty);
+
+    return StudentDashboardData(
+      info: StudentDashboardInfo(
+        fullName: '${jsonString(info['first_name'])} ${jsonString(info['last_name'])}'.trim(),
+        course: jsonString(info['course_name']),
+        batchText: batchParts.join(' · '),
+      ),
+      stats: StudentDashboardStats(
+        attendancePercent: jsonDouble(stats['attendance_percentage']),
+        assignmentsDoneText:
+            '${jsonInt(stats['assignments_done'])}/${jsonInt(stats['assignments_total'])}',
+        upcomingExamsCount: jsonInt(stats['upcoming_exams']),
+        feeDueText: '₹${jsonDouble(stats['fee_due']).round()}',
+      ),
+      todaysClassSchedule: jsonList(json['today_classes']).map(_classItem).toList(),
+      courseProgress: jsonList(json['course_progress'])
+          .map((item) => CourseProgressModel(
+                courseName: jsonString(item['subject']),
+                percentComplete: jsonDouble(item['percentage']),
+              ))
+          .toList(),
+      pendingAssignments: jsonList(json['pending_assignments'])
+          .map((item) => DashboardListItem(
+                title: jsonString(item['title']),
+                subtitle: jsonString(item['status']),
+                status: item['is_overdue'] == true
+                    ? ListItemStatus.overdue
+                    : ListItemStatus.upcoming,
+              ))
+          .toList(),
     );
   }
 
-  /// Shown in "Today's Class Schedule".
-  Future<List<DashboardListItem>> getTodaysClassSchedule() async {
-    await Future.delayed(const Duration(milliseconds: 400));
+  /// One of today's classes. The API document doesn't show one, so the
+  /// field names follow the live-classes API, which is the same data.
+  DashboardListItem _classItem(Map<String, dynamic> item) {
+    final title = [item['subject_name'], item['subject'], item['topic']]
+        .map(jsonString)
+        .firstWhere((text) => text.isNotEmpty, orElse: () => 'Class');
 
-    return const [
-      DashboardListItem(
-        title: 'Basic Electrical Wiring',
-        subtitle: '09:00 AM · Er. R. Kumar',
-        status: ListItemStatus.live,
-      ),
-      DashboardListItem(
-        title: 'Workshop Safety',
-        subtitle: '11:00 AM · S. Pandey',
-        status: ListItemStatus.upcoming,
-      ),
-      DashboardListItem(
-        title: 'Employability Skills',
-        subtitle: '02:00 PM · N. Singh',
-        status: ListItemStatus.upcoming,
-      ),
-    ];
-  }
+    final time = formatTimeText(jsonString(item['start_time'] ?? item['time']));
+    final faculty = jsonString(item['faculty_name'] ?? item['faculty']);
 
-  /// Shown in "Course Progress" - how far through each course the
-  /// student is, as a percentage.
-  Future<List<CourseProgressModel>> getCourseProgress() async {
-    await Future.delayed(const Duration(milliseconds: 400));
+    final status = jsonString(item['status']).toLowerCase();
 
-    return const [
-      CourseProgressModel(courseName: 'Basic Electrical Wiring', percentComplete: 72),
-      CourseProgressModel(courseName: 'Workshop Safety', percentComplete: 60),
-      CourseProgressModel(courseName: 'Employability Skills', percentComplete: 90),
-    ];
-  }
-
-  /// Shown in "Pending Assignments".
-  Future<List<DashboardListItem>> getPendingAssignments() async {
-    await Future.delayed(const Duration(milliseconds: 400));
-
-    return const [
-      DashboardListItem(
-        title: 'Wiring Diagram Submission',
-        subtitle: 'Basic Electrical Wiring',
-        status: ListItemStatus.upcoming,
-      ),
-      DashboardListItem(
-        title: 'Safety Protocol Report',
-        subtitle: 'Workshop Safety',
-        status: ListItemStatus.overdue,
-      ),
-    ];
+    return DashboardListItem(
+      title: title,
+      subtitle: [time, faculty].where((part) => part.isNotEmpty).join(' · '),
+      status: status == 'live' || status == 'ongoing'
+          ? ListItemStatus.live
+          : status == 'completed'
+              ? ListItemStatus.done
+              : ListItemStatus.upcoming,
+    );
   }
 }

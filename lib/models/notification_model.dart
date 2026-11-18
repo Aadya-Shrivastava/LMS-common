@@ -9,12 +9,16 @@ class NotificationModel {
   /// Whether the user has already opened/read this notification.
   final bool isRead;
 
+  /// A link to an attached file or image. Can be empty.
+  final String attachmentUrl;
+
   const NotificationModel({
     required this.id,
     required this.title,
     required this.body,
     required this.createdAt,
     this.isRead = false,
+    this.attachmentUrl = '',
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
